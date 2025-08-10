@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Android Phone - VivaSmart</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="stylesheet" href="assets/css/product-details-3.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4">
+    <a class="navbar-brand" href="index.html">VivaSmart</a>
+    <div class="ms-auto">
+      <a href="cart.html" class="text-white"><i class="fas fa-shopping-cart"></i> Cart</a>
+    </div>
+  </nav>
+
+  <!-- Product Detail Section -->
+  <div class="container my-5">
+    <div class="row align-items-center product-box animate">
+      <div class="col-md-5 mt-4 mt-md-0">
+        <div id="carouselProduct3" class="carousel slide" data-bs-ride="carousel">
+          <div class="carousel-inner rounded">
+            <div class="carousel-item active">
+              <img src="assets/images/Android Phone01.jpg" class="d-block w-100" alt="Android Phone Front">
+            </div>
+            <div class="carousel-item">
+              <img src="assets/images/Android Phone02.jpg" class="d-block w-100" alt="Android Phone Side">
+            </div>
+            <div class="carousel-item">
+              <img src="assets/images/iphone.jpg" class="d-block w-100" alt="Android Phone Back">
+            </div>
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#carouselProduct3" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon"></span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#carouselProduct3" data-bs-slide="next">
+            <span class="carousel-control-next-icon"></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="col-md-6 mt-4 mt-md-0">
+        <h2 id="product-name">Android Phone</h2>
+        <p class="price" id="product-price">₦74,500</p>
+        <p class="description">
+          Enjoy sleek design and powerful performance with this Android phone. Featuring a high-res display, long-lasting battery, and advanced camera for perfect shots every time.
+        </p>
+        <button class="btn btn-dark w-100 mb-4" onclick="addToCart()"><i class="fas fa-cart-plus"></i> Add to Cart</button>
+
+        <!-- Review Section -->
+        <div id="reviews-section">
+          <h4>Customer Reviews (<span id="review-count">0</span>)</h4>
+          <div id="review-list" class="mb-4"></div>
+
+          <h5 class="mt-4">Leave a Review</h5>
+          <form id="review-form">
+            <div class="mb-3">
+              <label for="reviewer-name" class="form-label">Name</label>
+              <input type="text" class="form-control" id="reviewer-name" required>
+            </div>
+            <div class="mb-3">
+              <label for="review-text" class="form-label">Your Review</label>
+              <textarea class="form-control" id="review-text" rows="3" required></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Rating</label>
+              <select class="form-select" id="review-rating" required>
+                <option value="">Select Rating</option>
+                <option value="5">★★★★★ (5)</option>
+                <option value="4">★★★★☆ (4)</option>
+                <option value="3">★★★☆☆ (3)</option>
+                <option value="2">★★☆☆☆ (2)</option>
+                <option value="1">★☆☆☆☆ (1)</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Review</button>
+          </form>
+        </div>
+        <!-- End Review Section -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- Add to Cart + Reviews Script -->
+  <script>
+    // Add to Cart logic
+    function addToCart() {
+      const product = {
+        id: 3,
+        name: "Android Phone",
+        price: 74500,
+        image: "assets/images/Android Phone01.jpg",
+        quantity: 1
+      };
+
+      let cart = JSON.parse(localStorage.getItem('cart')) || [];
+      const existingIndex = cart.findIndex(item => item.id === product.id);
+      if (existingIndex > -1) {
+        cart[existingIndex].quantity += 1;
+      } else {
+        cart.push(product);
+      }
+
+      localStorage.setItem('cart', JSON.stringify(cart));
+      alert("Product added to cart!");
+    }
+
+    // Review logic
+    const productId = 3;
+
+    document.addEventListener('DOMContentLoaded', function () {
+      displayReviews();
+
+      document.getElementById('review-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const name = document.getElementById('reviewer-name').value.trim();
+        const text = document.getElementById('review-text').value.trim();
+        const rating = parseInt(document.getElementById('review-rating').value);
+
+        if (!name || !text || !rating) return;
+
+        const newReview = {
+          name,
+          text,
+          rating,
+          date: new Date().toLocaleDateString()
+        };
+
+        const reviews = JSON.parse(localStorage.getItem(`reviews_${productId}`)) || [];
+        reviews.push(newReview);
+        localStorage.setItem(`reviews_${productId}`, JSON.stringify(reviews));
+
+        this.reset();
+        displayReviews();
+      });
+    });
+
+    function displayReviews() {
+      const reviewList = document.getElementById('review-list');
+      const reviewCount = document.getElementById('review-count');
+      const reviews = JSON.parse(localStorage.getItem(`reviews_${productId}`)) || [];
+
+      reviewList.innerHTML = '';
+      reviewCount.textContent = reviews.length;
+
+      reviews.forEach(review => {
+        const reviewItem = document.createElement('div');
+        reviewItem.className = 'border p-3 rounded mb-3 bg-light';
+        reviewItem.innerHTML = `
+          <strong>${review.name}</strong> <span class="text-muted">(${review.date})</span><br/>
+          <span>${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</span><br/>
+          <p class="mt-2">${review.text}</p>
+        `;
+        reviewList.appendChild(reviewItem);
+      });
+    }
+  </script>
+</body>
+</html>
+<!-- End of HTML Document -->
+<!-- This code creates a product details page for an Android phone with a carousel for images, a review section, and functionality to add the product to a shopping cart. The reviews are stored in local storage and displayed dynamically. -->
+<!-- The page is styled using Bootstrap and custom CSS, and includes a responsive design for various screen sizes. The review form allows users to submit their name, review text, and rating, which are then displayed below the product details. -->
+<!-- The add to cart functionality updates the local storage with the product details and quantity, allowing users to manage their cart items. The page is designed to be user-friendly and visually appealing, with a focus on product information and customer interaction. -->
+<!-- End of HTML Document -->

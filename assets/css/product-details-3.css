@@ -1,0 +1,92 @@
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background-color: #f4f4f4;
+  margin: 0;
+  padding: 0;
+}
+
+.product-box {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 30px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: transform 0.4s ease;
+}
+
+.product-box.animate {
+  animation: slideIn 0.7s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.price {
+  color: #198754;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 15px 0;
+}
+
+.description {
+  font-size: 1rem;
+  color: #555;
+}
+
+.carousel-inner img {
+  height: 350px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+/* Side Thumbnail Styles */
+.thumb-img {
+  width: 100%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  border-radius: 5px;
+  transition: border 0.3s ease;
+  object-fit: cover;
+}
+
+.thumb-img:hover {
+  border-color: #198754;
+}
+
+.main-img {
+  max-height: 350px;
+  border-radius: 10px;
+  object-fit: contain;
+}
+
+.thumbnails {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+.thumbnails img {
+  width: 80px;
+  height: 80px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+.carousel-inner img {
+  height: 420px; /* increased from 350px */
+  width: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+@media (min-width: 768px) {
+  .carousel-inner img {
+    height: 500px;
+  }
+}
