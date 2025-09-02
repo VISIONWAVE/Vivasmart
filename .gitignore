@@ -29,3 +29,4 @@ Thumbs.db
 
 # Firebase config backups
 firebase-debug.log
+firebase-config.js
