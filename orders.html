@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Orders - VivaSmart</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <style>
+    body { background:#f9f9f9; font-family: 'Segoe UI', sans-serif; }
+    .order-card { border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .order-header { background:#0d6efd; color:white; padding:10px; border-radius:12px 12px 0 0; }
+    .order-body { padding: 15px; }
+    .badge-status { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container my-5">
+    <h2 class="mb-4">📦 All Orders (Admin)</h2>
+    <div id="ordersList"></div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, updateDoc, doc, orderBy, query } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { firebaseConfig } from "./firebase-config.js";
+
+    // Init Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Init EmailJS
+    emailjs.init("5EvnGcBSsW2DxGEt6"); // 🔑 Replace with your EmailJS Public Key
+
+    const ordersList = document.getElementById("ordersList");
+
+    // Load all orders
+    async function loadOrders() {
+      ordersList.innerHTML = `<p>⏳ Loading orders...</p>`;
+      const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        ordersList.innerHTML = `<div class="alert alert-info">No orders found.</div>`;
+        return;
+      }
+
+      ordersList.innerHTML = "";
+      querySnapshot.forEach((docSnap) => {
+        const order = docSnap.data();
+        const itemsList = order.items.map(i => `${i.name} (x${i.quantity || 1})`).join(", ");
+        const date = order.createdAt?.toDate().toLocaleString() || "N/A";
+
+        ordersList.innerHTML += `
+          <div class="card order-card">
+            <div class="order-header">
+              <h5>Order ID: ${docSnap.id}</h5>
+            </div>
+            <div class="order-body">
+              <p><strong>User:</strong> ${order.name} (${order.email})</p>
+              <p><strong>Items:</strong> ${itemsList}</p>
+              <p><strong>Total:</strong> ₦${order.total.toLocaleString()}</p>
+              <p><strong>Status:</strong> 
+                <span class="badge bg-${order.status === "Paid" ? "success" : order.status === "Shipped" ? "primary" : order.status === "Delivered" ? "dark" : "warning"} badge-status">
+                  ${order.status}
+                </span>
+              </p>
+              <p><strong>Date:</strong> ${date}</p>
+
+              <select class="form-select form-select-sm mb-2" onchange="updateStatus('${docSnap.id}', this.value, '${order.email}', '${order.name}')">
+                <option value="Pending" ${order.status === "Pending" ? "selected" : ""}>Pending</option>
+                <option value="Paid" ${order.status === "Paid" ? "selected" : ""}>Paid</option>
+                <option value="Shipped" ${order.status === "Shipped" ? "selected" : ""}>Shipped</option>
+                <option value="Delivered" ${order.status === "Delivered" ? "selected" : ""}>Delivered</option>
+              </select>
+
+              <button class="btn btn-outline-primary btn-sm" onclick="printReceipt('${docSnap.id}','${itemsList}','${order.total}','${order.status}','${date}','${order.name}','${order.email}')">🧾 Print Receipt</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // Update order status + send email
+    window.updateStatus = async function(orderId, newStatus, email, name) {
+      try {
+        await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+        alert("✅ Status updated to " + newStatus);
+
+        // Send email notification
+        emailjs.send("service_xiiwskd", "template_status_update", {
+          to_email: email,
+          to_name: name,
+          order_id: orderId,
+          status: newStatus
+        }).then(() => {
+          console.log("📧 Status email sent to " + email);
+        }).catch(err => {
+          console.error("❌ EmailJS error:", err);
+        });
+
+        loadOrders();
+      } catch (err) {
+        alert("❌ Error updating status: " + err.message);
+      }
+    }
+
+    // Print Receipt
+    window.printReceipt = function(orderId, items, total, status, date, name, email){
+      const receiptWindow = window.open("", "PrintReceipt", "width=600,height=600");
+      receiptWindow.document.write(`
+        <html>
+          <head><title>Receipt - VivaSmart</title></head>
+          <body style="font-family:Arial,sans-serif; padding:20px;">
+            <h2>VivaSmart Receipt</h2>
+            <p><strong>Order ID:</strong> ${orderId}</p>
+            <p><strong>Name:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Items:</strong> ${items}</p>
+            <p><strong>Total:</strong> ₦${total}</p>
+            <p><strong>Status:</strong> ${status}</p>
+            <p><strong>Date:</strong> ${date}</p>
+            <hr>
+            <p>✅ Verified by VivaSmart Admin</p>
+            <script>window.print();<\/script>
+          </body>
+        </html>
+      `);
+      receiptWindow.document.close();
+    }
+
+    loadOrders();
+  </script>
+</body>
+</html>
+ 

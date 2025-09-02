@@ -1,17 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { firebaseConfig } from "./firebase-config.js";  // ✅ import real config
 
-// Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyBw5DaGdr-8Ibon6sRhJMb3bAIWMgz4w-8",
-  authDomain: "vivasmart-4588f.firebaseapp.com",
-  projectId: "vivasmart-4588f",
-  storageBucket: "vivasmart-4588f.firebasestorage.app",
-  messagingSenderId: "815227488896",
-  appId: "1:815227488896:web:005f22c99d90d5168cb465",
-  measurementId: "G-3NNSR3J1Y5"
-};
-
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
@@ -71,3 +62,8 @@ signupForm.addEventListener("submit", async (e) => {
     alert("Signup Failed: " + error.message);
   }
 });
+// Initial display setup
+loginForm.style.display = "block";
+signupForm.style.display = "none";
+formTitle.innerText = "Login";
+toggleText.innerHTML = `Don't have an account? <a href="#" id="toggle-link">Sign Up</a>`;

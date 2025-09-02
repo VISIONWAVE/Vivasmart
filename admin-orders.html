@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Orders - VivaSmart</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <style>
+    body { background:#f9f9f9; font-family: 'Segoe UI', sans-serif; }
+    .order-card { border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 20px; transition: 0.2s; }
+    .order-card:hover { transform: scale(1.02); }
+    .badge-status { font-size: 0.9rem; }
+    .filter-bar { background:white; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:20px; }
+    .stats-box { padding:20px; border-radius:10px; color:white; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2>📦 Admin Orders Management</h2>
+      <button class="btn btn-outline-danger" id="logoutBtn">🚪 Logout</button>
+    </div>
+
+    <!-- 📊 Dashboard Stats -->
+    <div class="row mb-4">
+      <div class="col-md-3"><div class="stats-box bg-primary"><h4 id="statTotalOrders">0</h4><p>Total Orders</p></div></div>
+      <div class="col-md-3"><div class="stats-box bg-warning"><h4 id="statPending">0</h4><p>Pending</p></div></div>
+      <div class="col-md-3"><div class="stats-box bg-success"><h4 id="statPaid">0</h4><p>Paid</p></div></div>
+      <div class="col-md-3"><div class="stats-box bg-dark"><h4 id="statRevenue">₦0</h4><p>Total Revenue</p></div></div>
+    </div>
+
+    <!-- 🔍 Filters + Bulk Actions -->
+    <div class="row filter-bar g-3 align-items-center">
+      <div class="col-md-3"><input type="text" id="searchInput" class="form-control" placeholder="Search by Order ID or Email"></div>
+      <div class="col-md-3"><select id="statusFilter" class="form-select">
+        <option value="">All Statuses</option><option value="Pending">Pending</option>
+        <option value="Paid">Paid</option><option value="Shipped">Shipped</option>
+        <option value="Delivered">Delivered</option>
+      </select></div>
+      <div class="col-md-3"><select id="sortFilter" class="form-select">
+        <option value="date">Sort by Date</option>
+        <option value="amount">Sort by Amount</option>
+        <option value="status">Sort by Status</option>
+      </select></div>
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-primary flex-fill" onclick="applyFilters()">Apply</button>
+        <button class="btn btn-success flex-fill" onclick="bulkUpdateStatus('Shipped')">🚚 Mark Shipped</button>
+        <button class="btn btn-danger flex-fill" onclick="bulkDelete()">🗑 Delete</button>
+        <button class="btn btn-secondary flex-fill" onclick="exportCSV()">⬇ Export</button>
+      </div>
+    </div>
+
+    <div id="ordersList"></div>
+
+    <!-- 📄 Pagination -->
+    <div class="text-center my-4">
+      <button id="loadMoreBtn" class="btn btn-outline-primary">Load More</button>
+    </div>
+  </div>
+
+  <!-- 🆕 Order Detail Modal -->
+  <div class="modal fade" id="orderDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Order Details</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="orderDetailBody">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs, updateDoc, deleteDoc, doc, orderBy, query, limit, startAfter } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { firebaseConfig } from "./firebase-config.js";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    const ordersList = document.getElementById("ordersList");
+    let allOrders = [];
+    let selectedOrders = new Set();
+    let lastVisible = null;
+    const PAGE_SIZE = 5;
+
+    // ✅ Restrict to specific admins
+    const adminEmails = ["olayemiseunpaul@gmail.com"]; // change to your admin email(s)
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user || !adminEmails.includes(user.email)) {
+        alert("⚠️ Not authorized. Redirecting to login...");
+        window.location.href = "admin-login.html";
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      signOut(auth).then(() => {
+        window.location.href = "admin-login.html";
+      });
+    });
+
+    async function loadOrders(paginate = false) {
+      let q;
+      if (paginate && lastVisible) {
+        q = query(collection(db, "orders"), orderBy("createdAt", "desc"), startAfter(lastVisible), limit(PAGE_SIZE));
+      } else {
+        q = query(collection(db, "orders"), orderBy("createdAt", "desc"), limit(PAGE_SIZE));
+        ordersList.innerHTML = `<p>⏳ Loading orders...</p>`;
+        allOrders = [];
+      }
+
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+        querySnapshot.forEach((docSnap) => {
+          allOrders.push({ id: docSnap.id, ...docSnap.data() });
+        });
+      } else {
+        document.getElementById("loadMoreBtn").disabled = true;
+        document.getElementById("loadMoreBtn").textContent = "No More Orders";
+      }
+
+      updateStats();
+      renderOrders(allOrders);
+    }
+
+    function updateStats() {
+      document.getElementById("statTotalOrders").textContent = allOrders.length;
+      document.getElementById("statPending").textContent = allOrders.filter(o => o.status==="Pending").length;
+      document.getElementById("statPaid").textContent = allOrders.filter(o => o.status==="Paid").length;
+      document.getElementById("statRevenue").textContent = "₦" + allOrders.filter(o => ["Paid","Delivered"].includes(o.status))
+        .reduce((sum,o)=>sum+o.total,0).toLocaleString();
+    }
+
+    function renderOrders(orders) {
+      if (!orders.length) {
+        ordersList.innerHTML = `<div class="alert alert-info">No orders found.</div>`;
+        return;
+      }
+
+      ordersList.innerHTML = "";
+      orders.forEach((order) => {
+        const date = order.createdAt?.toDate().toLocaleString() || "N/A";
+        ordersList.innerHTML += `
+          <div class="card order-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <input type="checkbox" onclick="event.stopPropagation(); toggleSelect('${order.id}', this.checked)"> 
+                <strong>Order ID:</strong> ${order.id}
+              </div>
+              <select class="form-select form-select-sm w-auto" onchange="updateOrderStatus('${order.id}', this.value)">
+                <option ${order.status==="Pending"?"selected":""}>Pending</option>
+                <option ${order.status==="Paid"?"selected":""}>Paid</option>
+                <option ${order.status==="Shipped"?"selected":""}>Shipped</option>
+                <option ${order.status==="Delivered"?"selected":""}>Delivered</option>
+                <option ${order.status==="Cancelled"?"selected":""}>Cancelled</option>
+              </select>
+            </div>
+            <div class="mt-2">
+              <p><strong>User:</strong> ${order.name} (${order.email})</p>
+              <p><strong>Total:</strong> ₦${order.total.toLocaleString()}</p>
+              <p><strong>Date:</strong> ${date}</p>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    // ✅ Update single order status
+    window.updateOrderStatus = async function(orderId, newStatus) {
+      await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+      alert("✅ Status updated to " + newStatus);
+      loadOrders();
+    };
+
+    window.toggleSelect = function(orderId, checked) {
+      if (checked) selectedOrders.add(orderId);
+      else selectedOrders.delete(orderId);
+    };
+
+    window.bulkDelete = async function() {
+      if (!selectedOrders.size) return alert("⚠️ No orders selected");
+      if (!confirm("⚠️ Delete selected orders?")) return;
+      for (let id of selectedOrders) {
+        await deleteDoc(doc(db, "orders", id));
+      }
+      alert("🗑 Deleted");
+      selectedOrders.clear();
+      loadOrders();
+    };
+
+    window.bulkUpdateStatus = async function(newStatus) {
+      if (!selectedOrders.size) return alert("⚠️ No orders selected");
+      for (let id of selectedOrders) {
+        await updateDoc(doc(db, "orders", id), { status: newStatus });
+      }
+      alert("✅ Updated");
+      selectedOrders.clear();
+      loadOrders();
+    };
+
+    window.exportCSV = function() {
+      if (!allOrders.length) return alert("⚠️ No orders to export");
+      let csv = "OrderID,Name,Email,Total,Status,Date\n";
+      allOrders.forEach(o => {
+        csv += `${o.id},${o.name},${o.email},${o.total},${o.status},${o.createdAt?.toDate().toLocaleString() || "N/A"}\n`;
+      });
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "orders.csv";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+
+    document.getElementById("loadMoreBtn").addEventListener("click", () => loadOrders(true));
+
+    loadOrders();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
